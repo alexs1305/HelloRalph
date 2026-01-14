@@ -4,6 +4,16 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+---
+
+## 🤖 AI Agent? Start Here
+
+**If you are an AI coding agent**, read and execute the instructions in **[AGENTS.md](AGENTS.md)**.
+
+That file contains everything you need to set up Ralph Wiggum in a user's project.
+
+---
+
 ## What is Ralph Wiggum?
 
 Ralph Wiggum is an approach to **fully autonomous AI-assisted software development** that combines:
@@ -12,24 +22,30 @@ Ralph Wiggum is an approach to **fully autonomous AI-assisted software developme
 - **Spec-driven development** - Professional-grade specifications guide the work
 - **Cross-platform support** - Works with Claude Code, OpenAI Codex, and Cursor
 
-## Quick Start
+## Quick Start (For Humans)
 
 **Just tell your AI agent:**
 
 > "Set up Ralph Wiggum in this project using the instructions at https://github.com/fstandhartinger/ralph-wiggum"
 
-That's it. The AI will handle the rest.
+That's it. Your AI will read the AGENTS.md file and set up everything automatically.
 
 ---
 
 ## What Gets Installed
 
-When you point your AI agent to this repo, it will:
+When your AI agent reads this repo, it will create:
 
-1. **Create a project constitution** - Core principles and constraints
-2. **Set up spec templates** - For creating feature specifications
-3. **Install slash commands** - `/speckit.specify` and `/speckit.implement`
-4. **Configure Ralph loops** - Autonomous implementation with completion signals
+| File/Folder | Purpose |
+|-------------|---------|
+| `.specify/memory/constitution.md` | Core project principles |
+| `templates/spec-template.md` | Feature specification template |
+| `templates/checklist-template.md` | Quality checklist template |
+| `.cursor/commands/speckit.*.md` | Cursor slash commands |
+| `.claude/commands/ralph-loop.md` | Claude Code command |
+| `codex-prompts/*.md` | OpenAI Codex prompts |
+| `scripts/ralph-loop.sh` | Universal runner script |
+| `AGENTS.md` | Project-specific agent instructions |
 
 ## How It Works
 
@@ -43,79 +59,6 @@ When you point your AI agent to this repo, it will:
 /speckit.implement
 ```
 
----
-
-## AI Agent Setup Instructions
-
-**If you are an AI agent reading this, follow these steps to set up Ralph Wiggum in the user's project:**
-
-### Step 1: Create Directory Structure
-
-```bash
-mkdir -p .specify/memory
-mkdir -p .specify/specs
-mkdir -p templates
-mkdir -p scripts
-mkdir -p .cursor/commands
-```
-
-### Step 2: Copy Template Files
-
-Copy all files from this repository's `templates/` folder to the user's project:
-
-- `templates/constitution-template.md` -> `.specify/memory/constitution.md`
-- `templates/spec-template.md` -> `templates/spec-template.md`
-- `templates/checklist-template.md` -> `templates/checklist-template.md`
-
-### Step 3: Copy Slash Commands
-
-Copy the Cursor slash commands:
-- `.cursor/commands/speckit.specify.md`
-- `.cursor/commands/speckit.implement.md`
-
-### Step 4: Copy Scripts
-
-Copy and make executable:
-```bash
-cp scripts/ralph-loop.sh ./scripts/
-cp scripts/setup-codex-prompts.sh ./scripts/
-chmod +x scripts/*.sh
-```
-
-### Step 5: Customize the Constitution
-
-Open `.specify/memory/constitution.md` and guide the user to fill in:
-- `[PROJECT_NAME]` - Their project name
-- `[PROJECT_DESCRIPTION]` - What the project does
-- `[TECH_STACK]` - Technologies they're using
-- Any other `[PLACEHOLDER]` sections
-
-### Step 6: Create AGENTS.md
-
-Create an `AGENTS.md` file in the project root with project-specific instructions for AI agents.
-
-### Step 7: Verify Installation
-
-Confirm these files exist:
-- [ ] `.specify/memory/constitution.md`
-- [ ] `templates/spec-template.md`
-- [ ] `.cursor/commands/speckit.specify.md`
-- [ ] `.cursor/commands/speckit.implement.md`
-- [ ] `scripts/ralph-loop.sh`
-
-### Step 8: Tell the User
-
-Once setup is complete, inform the user:
-
-> "Ralph Wiggum is now installed!
-> 
-> Use `/speckit.specify` to create your first feature specification.
-> Use `/speckit.implement` to have me build it autonomously.
-> 
-> Your constitution is at `.specify/memory/constitution.md` - review and customize it for your project."
-
----
-
 The AI agent will:
 - Read the specification
 - Implement iteratively until all acceptance criteria pass
@@ -123,60 +66,33 @@ The AI agent will:
 - Deploy and verify
 - Output `<promise>DONE</promise>` when complete
 
+---
+
 ## Supported Platforms
 
-| Platform | Command | Mode |
-|----------|---------|------|
-| Claude Code | `/ralph-loop:ralph-loop "..."` | Interactive |
-| Codex CLI | `./scripts/codex-loop.sh --all` | Interactive or Full-Auto |
-| Cursor | `/speckit.implement` | Interactive |
+| Platform | Method | YOLO Mode |
+|----------|--------|-----------|
+| **Cursor** | `/speckit.specify` and `/speckit.implement` | Built-in |
+| **Claude Code** | `/ralph-loop:ralph-loop "..."` | Built-in |
+| **Codex CLI** | `./scripts/ralph-loop.sh --all` | `--dangerously-bypass-approvals-and-sandbox` |
 
 ## Using Codex CLI
 
-Ralph Wiggum works great with [OpenAI Codex CLI](https://github.com/openai/codex). Use our dedicated script:
-
-### Installation
+Ralph Wiggum works great with [OpenAI Codex CLI](https://github.com/openai/codex):
 
 ```bash
-# Install Codex CLI globally
+# Install Codex CLI
 npm install -g @openai/codex
-
-# Authenticate (one-time)
 codex --login
+
+# Run for all specs (YOLO mode)
+./scripts/ralph-loop.sh --all
+
+# Or directly:
+codex --dangerously-bypass-approvals-and-sandbox --prompt-file codex-prompts/ralph-all.md
 ```
 
-### Running the Loop
-
-```bash
-# Run for a single spec
-./scripts/codex-loop.sh --spec 001-project-setup
-
-# Run for all specs
-./scripts/codex-loop.sh --all
-
-# Full-auto mode (no confirmations)
-./scripts/codex-loop.sh --all --full-auto
-
-# Headless mode (quiet + full-auto, good for CI)
-./scripts/codex-loop.sh --all --full-auto --quiet
-
-# Run with inline prompt
-./scripts/codex-loop.sh "Implement user authentication with OAuth"
-
-# Run with prompt file
-./scripts/codex-loop.sh --prompt-file PROMPT.md --full-auto
-```
-
-### Script Options
-
-```
--h, --help              Show help
--p, --prompt-file FILE  Read prompt from file
--s, --spec NAME         Run for specific spec in specs/
--a, --all               Run for all specs in order
--f, --full-auto         YOLO mode: bypass all approvals and sandbox
--q, --quiet             Suppress output except errors
-```
+---
 
 ## Credits
 
@@ -185,6 +101,7 @@ This approach builds upon and is inspired by:
 - [Original Ralph Wiggum technique](https://awesomeclaude.ai/ralph-wiggum) by the Claude community
 - [How to Ralph Wiggum](https://github.com/ghuntley/how-to-ralph-wiggum) by Geoffrey Huntley
 - [Claude Code Ralph Wiggum plugin](https://github.com/anthropics/claude-code/tree/main/plugins/ralph-wiggum)
+- [Matt Pocock's variant](https://twitter.com/mattpocockuk) for async/concurrent loops
 - [SpecKit](https://github.com/github/spec-kit) by GitHub
 
 Our contribution is integrating these approaches with a simplified SpecKit workflow optimized for modern AI agents.
