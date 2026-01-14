@@ -125,11 +125,58 @@ The AI agent will:
 
 ## Supported Platforms
 
-| Platform | Command |
-|----------|---------|
-| Claude Code | `/ralph-loop:ralph-loop "..."` |
-| Codex CLI | `/prompts:ralph-all` |
-| Cursor | `/speckit.implement` |
+| Platform | Command | Mode |
+|----------|---------|------|
+| Claude Code | `/ralph-loop:ralph-loop "..."` | Interactive |
+| Codex CLI | `./scripts/codex-loop.sh --all` | Interactive or Full-Auto |
+| Cursor | `/speckit.implement` | Interactive |
+
+## Using Codex CLI
+
+Ralph Wiggum works great with [OpenAI Codex CLI](https://github.com/openai/codex). Use our dedicated script:
+
+### Installation
+
+```bash
+# Install Codex CLI globally
+npm install -g @openai/codex
+
+# Authenticate (one-time)
+codex --login
+```
+
+### Running the Loop
+
+```bash
+# Run for a single spec
+./scripts/codex-loop.sh --spec 001-project-setup
+
+# Run for all specs
+./scripts/codex-loop.sh --all
+
+# Full-auto mode (no confirmations)
+./scripts/codex-loop.sh --all --full-auto
+
+# Headless mode (quiet + full-auto, good for CI)
+./scripts/codex-loop.sh --all --full-auto --quiet
+
+# Run with inline prompt
+./scripts/codex-loop.sh "Implement user authentication with OAuth"
+
+# Run with prompt file
+./scripts/codex-loop.sh --prompt-file PROMPT.md --full-auto
+```
+
+### Script Options
+
+```
+-h, --help              Show help
+-p, --prompt-file FILE  Read prompt from file
+-s, --spec NAME         Run for specific spec in specs/
+-a, --all               Run for all specs in order
+-f, --full-auto         Run without confirmations
+-q, --quiet             Suppress output except errors
+```
 
 ## Credits
 
