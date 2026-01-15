@@ -43,11 +43,93 @@ Ralph Wiggum is **fully autonomous AI-assisted software development**:
 - 🤖 **YOLO mode** — No permission prompts, full autonomy
 - 🔁 **Nested loops** — Outer loop manages backlog, inner loops implement each item
 
+## How It Actually Works
+
+The Ralph loop is a **real bash loop** that enforces completion:
+
+```
+┌───────────────────────────────────────────────────────────┐
+│                    RALPH LOOP                             │
+│                                                           │
+│   ┌─────────────┐                                         │
+│   │ Build Prompt │ ←── Spec or custom task                │
+│   └──────┬──────┘                                         │
+│          ▼                                                │
+│   ┌────────────────────────┐                              │
+│   │ Execute Claude/Codex   │ ←── --print captures output  │
+│   └──────────┬─────────────┘                              │
+│              ▼                                            │
+│   ┌────────────────────────┐                              │
+│   │ Parse Output for       │ ←── Looking for <promise>    │
+│   │ Completion Signal      │                              │
+│   └──────────┬─────────────┘                              │
+│              ▼                                            │
+│        ┌───────────┐                                      │
+│        │ Found     │──YES──▶ EXIT with success            │
+│        │ <promise> │                                      │
+│        │ DONE?     │                                      │
+│        └─────┬─────┘                                      │
+│              │ NO                                         │
+│              ▼                                            │
+│        ┌───────────┐                                      │
+│        │ Circuit   │──OPEN──▶ EXIT (stagnation)           │
+│        │ Breaker?  │                                      │
+│        └─────┬─────┘                                      │
+│              │ CLOSED                                     │
+│              ▼                                            │
+│        Loop back to Execute                               │
+└───────────────────────────────────────────────────────────┘
+```
+
+**Key enforcement**: The loop will NOT exit until it sees `<promise>DONE</promise>` in the AI's output.
+
+## Completion Signals
+
+The AI must output one of these exact strings to exit the loop:
+
+- `<promise>DONE</promise>` — Single task/spec complete
+- `<promise>ALL_DONE</promise>` — All tasks/specs complete
+
+## Circuit Breaker
+
+Prevents infinite loops by detecting stagnation:
+
+- **CLOSED**: Normal operation, progress being made
+- **HALF_OPEN**: Warning (2 loops without file changes)
+- **OPEN**: Halted (5+ loops without progress)
+
+## Usage
+
+```bash
+# All specs
+./scripts/ralph-loop.sh --all           # Claude Code
+./scripts/ralph-loop-codex.sh --all     # Codex CLI (YOLO mode)
+
+# Single spec
+./scripts/ralph-loop.sh --spec 001-project-setup
+
+# Custom task
+./scripts/ralph-loop.sh "Fix the login bug"
+
+# Utilities
+./scripts/ralph-loop.sh --reset-circuit    # Reset circuit breaker
+./scripts/ralph-loop.sh --circuit-status   # Show circuit breaker status
+```
+
+## Supported Platforms
+
+| Platform    | Script                          | YOLO Flag                                    |
+|-------------|---------------------------------|----------------------------------------------|
+| Claude Code | `./scripts/ralph-loop.sh`       | `--print` mode for output capture            |
+| Codex CLI   | `./scripts/ralph-loop-codex.sh` | `--dangerously-bypass-approvals-and-sandbox` |
+| Cursor      | `/speckit.implement`            | Interactive mode                             |
+
 ## Credits
 
 Built upon:
 - [Ralph Wiggum technique](https://awesomeclaude.ai/ralph-wiggum) by the Claude community
 - [How to Ralph Wiggum](https://github.com/ghuntley/how-to-ralph-wiggum) by Geoffrey Huntley
+- [ralph-claude-code](https://github.com/frankbria/ralph-claude-code) by frankbria
 - [SpecKit](https://github.com/github/spec-kit) by GitHub
 
 ## License
