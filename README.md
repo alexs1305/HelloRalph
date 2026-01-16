@@ -16,7 +16,7 @@
 
 ## What is Ralph Wiggum?
 
-Ralph Wiggum combines **Geoffrey Huntley's iterative bash loop** with **SpecKit-style specifications** for fully autonomous AI-assisted software development.
+Ralph Wiggum (in this flavour) combines **Geoffrey Huntley's original iterative bash loop** with **SpecKit-style specifications** for fully autonomous AI-assisted software development.
 
 ### Key Features
 
