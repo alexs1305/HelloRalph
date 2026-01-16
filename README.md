@@ -4,6 +4,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+⚠️ **Use at your own risk.** This tool grants AI agents significant autonomy over your codebase and system. Review all changes and use in isolated environments when possible.
+
 ## Quick Start
 
 **AI Agent? Start Here:**
