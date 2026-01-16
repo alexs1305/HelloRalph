@@ -74,8 +74,19 @@ The bash loop checks for this phrase. If not found, it retries.
 
 | Mode | Purpose | Command |
 |------|---------|---------|
-| **plan** | Gap analysis: compare specs vs code, create task list | `./scripts/ralph-loop.sh plan` |
-| **build** | Implementation: pick task, implement, test, commit | `./scripts/ralph-loop.sh` |
+| **build** (default) | Pick spec/task, implement, test, commit | `./scripts/ralph-loop.sh` |
+| **plan** (optional) | Create detailed task breakdown from specs | `./scripts/ralph-loop.sh plan` |
+
+### Planning is OPTIONAL
+
+Most projects work fine **directly from specs**. The agent simply:
+1. Looks at `specs/` folder
+2. Picks the highest priority incomplete spec
+3. Implements it completely
+
+Only use `plan` mode when you want a detailed breakdown of specs into smaller tasks.
+
+**Tip:** Delete `IMPLEMENTATION_PLAN.md` to return to working directly from specs.
 
 ---
 
@@ -115,13 +126,13 @@ This creates `specs/001-user-auth/spec.md` with:
 - Acceptance criteria
 - Completion signal section
 
-### 2. Run Planning Mode
+### 2. (Optional) Run Planning Mode
 
 ```bash
 ./scripts/ralph-loop.sh plan
 ```
 
-Creates `IMPLEMENTATION_PLAN.md` with prioritized tasks.
+Creates `IMPLEMENTATION_PLAN.md` with detailed task breakdown. **This step is optional** — most projects work fine directly from specs.
 
 ### 3. Run Build Mode
 
@@ -153,19 +164,21 @@ Each iteration:
 project/
 ├── .specify/
 │   └── memory/
-│       └── constitution.md      # Project principles & config
+│       └── constitution.md       # Project principles & config
 ├── specs/
 │   └── NNN-feature-name/
-│       └── spec.md              # Feature specification
+│       └── spec.md               # Feature specification
 ├── scripts/
-│   ├── ralph-loop.sh            # Claude Code loop
-│   └── ralph-loop-codex.sh      # OpenAI Codex loop
-├── PROMPT_build.md              # Build mode instructions
-├── PROMPT_plan.md               # Planning mode instructions
-├── IMPLEMENTATION_PLAN.md       # Shared state (task list)
-├── AGENTS.md                    # Points to constitution
-└── CLAUDE.md                    # Points to constitution
+│   ├── ralph-loop.sh             # Claude Code loop
+│   └── ralph-loop-codex.sh       # OpenAI Codex loop
+├── PROMPT_build.md               # Build mode instructions
+├── PROMPT_plan.md                # Planning mode instructions
+├── IMPLEMENTATION_PLAN.md        # (OPTIONAL) Detailed task list
+├── AGENTS.md                     # Points to constitution
+└── CLAUDE.md                     # Points to constitution
 ```
+
+**Note:** `IMPLEMENTATION_PLAN.md` is optional. If it doesn't exist, the agent works directly from specs.
 
 ---
 

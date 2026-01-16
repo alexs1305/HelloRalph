@@ -8,17 +8,20 @@
 # Combined with SpecKit-style specifications.
 #
 # Key principles:
-# - Each iteration picks ONE task from IMPLEMENTATION_PLAN.md
+# - Each iteration picks ONE task/spec to work on
 # - Agent works until acceptance criteria are met
 # - Only outputs <promise>DONE</promise> when truly complete
 # - Bash loop checks for magic phrase before continuing
 # - Fresh context window each iteration
 #
+# Work sources (in priority order):
+# 1. IMPLEMENTATION_PLAN.md (if exists) - pick highest priority task
+# 2. specs/ folder - pick highest priority incomplete spec
+#
 # Usage:
 #   ./scripts/ralph-loop.sh              # Build mode (unlimited)
 #   ./scripts/ralph-loop.sh 20           # Build mode (max 20 iterations)
-#   ./scripts/ralph-loop.sh plan         # Planning mode
-#   ./scripts/ralph-loop.sh plan 5       # Planning mode (max 5 iterations)
+#   ./scripts/ralph-loop.sh plan         # Planning mode (creates IMPLEMENTATION_PLAN.md)
 #
 
 set -e
@@ -62,28 +65,27 @@ https://github.com/ghuntley/how-to-ralph-wiggum
 
 Usage:
   ./scripts/ralph-loop.sh              # Build mode, unlimited iterations
-  ./scripts/ralph-loop.sh 20           # Build mode, max 20 iterations
-  ./scripts/ralph-loop.sh plan         # Planning mode
-  ./scripts/ralph-loop.sh plan 5       # Planning mode (max 5 iterations)
+  ./scripts/ralph-loop.sh 20           # Build mode, max 20 iterations  
+  ./scripts/ralph-loop.sh plan         # Planning mode (optional)
 
 Modes:
-  build (default)  Pick tasks from IMPLEMENTATION_PLAN.md and implement
-  plan             Create/update IMPLEMENTATION_PLAN.md from specs
+  build (default)  Pick spec/task and implement
+  plan             Create IMPLEMENTATION_PLAN.md from specs (OPTIONAL)
+
+Work Sources (checked in order):
+  1. IMPLEMENTATION_PLAN.md - If exists, pick highest priority task
+  2. specs/ folder - Otherwise, pick highest priority incomplete spec
+
+The plan mode is OPTIONAL. Most projects can work directly from specs.
 
 How it works:
   1. Each iteration feeds PROMPT.md to Claude via stdin
-  2. Claude picks the HIGHEST PRIORITY incomplete task
+  2. Claude picks the HIGHEST PRIORITY incomplete spec/task
   3. Claude implements, tests, and verifies acceptance criteria
   4. Claude outputs <promise>DONE</promise> ONLY if criteria are met
   5. Bash loop checks for the magic phrase
   6. If found, loop continues to next iteration (fresh context)
-  7. If not found, loop retries the same task
-
-Files:
-  PROMPT_build.md          - Build mode instructions
-  PROMPT_plan.md           - Planning mode instructions  
-  IMPLEMENTATION_PLAN.md   - Shared state (task list)
-  .specify/memory/constitution.md - Project principles
+  7. If not found, loop retries
 
 EOF
 }
@@ -91,7 +93,7 @@ EOF
 # Parse arguments
 if [ "$1" = "plan" ]; then
     MODE="plan"
-    MAX_ITERATIONS=${2:-0}
+    MAX_ITERATIONS=${2:-1}  # Default to 1 iteration for planning
 elif [[ "$1" =~ ^[0-9]+$ ]]; then
     MODE="build"
     MAX_ITERATIONS=$1
@@ -102,13 +104,6 @@ fi
 
 cd "$PROJECT_DIR"
 
-# Determine prompt file
-if [ "$MODE" = "plan" ]; then
-    PROMPT_FILE="PROMPT_plan.md"
-else
-    PROMPT_FILE="PROMPT_build.md"
-fi
-
 # Check if Claude CLI is available
 if ! command -v "$CLAUDE_CMD" &> /dev/null; then
     echo -e "${RED}Error: Claude CLI not found${NC}"
@@ -118,10 +113,15 @@ if ! command -v "$CLAUDE_CMD" &> /dev/null; then
     exit 1
 fi
 
-# Create default prompt files if they don't exist
-if [ ! -f "PROMPT_build.md" ]; then
-    echo -e "${YELLOW}Creating default PROMPT_build.md...${NC}"
-    cat > "PROMPT_build.md" << 'BUILDEOF'
+# Determine which prompt to use based on mode and available files
+if [ "$MODE" = "plan" ]; then
+    PROMPT_FILE="PROMPT_plan.md"
+else
+    PROMPT_FILE="PROMPT_build.md"
+fi
+
+# Create/update the build prompt to be flexible about plan vs specs
+cat > "PROMPT_build.md" << 'BUILDEOF'
 # Ralph Build Mode
 
 Based on Geoffrey Huntley's Ralph Wiggum methodology.
@@ -132,15 +132,22 @@ Based on Geoffrey Huntley's Ralph Wiggum methodology.
 
 0a. Read `.specify/memory/constitution.md` for project principles.
 
-0b. Study `specs/*` to understand feature specifications.
+0b. Study `specs/` to understand feature specifications.
 
-0c. Read @IMPLEMENTATION_PLAN.md to see the current task list.
+0c. Check if `IMPLEMENTATION_PLAN.md` exists.
 
 ---
 
-## Phase 1: Select Task
+## Phase 1: Select Work Item
 
-From IMPLEMENTATION_PLAN.md, pick the **HIGHEST PRIORITY** incomplete task.
+### If IMPLEMENTATION_PLAN.md exists:
+Pick the **HIGHEST PRIORITY** incomplete task from the plan.
+
+### If NO plan exists (preferred simple approach):
+Look at `specs/` folder and pick the **HIGHEST PRIORITY** spec that:
+- Is NOT marked as complete (no `[x] DONE` or similar in the spec)
+- Has incomplete acceptance criteria
+- Has the highest priority (lower number = higher priority, e.g., 001 before 010)
 
 Before implementing, search the codebase — don't assume it's not done.
 
@@ -148,10 +155,11 @@ Before implementing, search the codebase — don't assume it's not done.
 
 ## Phase 2: Implement
 
-Implement the task completely:
-- Follow the spec's requirements
+Implement the selected spec/task completely:
+- Follow the spec's requirements exactly
 - Write clean, maintainable code
 - Add tests as needed
+- Mark the spec as complete when done
 
 ---
 
@@ -160,41 +168,43 @@ Implement the task completely:
 Run the project's test suite and verify:
 - All tests pass
 - No lint errors
-- The task's acceptance criteria are met
+- The spec's acceptance criteria are 100% met
 
 ---
 
 ## Phase 4: Commit & Update
 
-1. Update @IMPLEMENTATION_PLAN.md — mark task complete or note issues
-2. `git add -A`
-3. `git commit` with a descriptive message
-4. `git push`
+1. If using IMPLEMENTATION_PLAN.md, update it to mark task complete
+2. If working directly from specs, add `## Status: COMPLETE` to the spec file
+3. `git add -A`
+4. `git commit` with a descriptive message
+5. `git push`
 
 ---
 
 ## Completion Signal
 
-**CRITICAL:** Only output the magic phrase when the task is 100% complete.
+**CRITICAL:** Only output the magic phrase when the spec/task is 100% complete.
 
 Check:
-- [ ] Implementation matches requirements
+- [ ] Implementation matches all requirements
 - [ ] All tests pass
-- [ ] Acceptance criteria verified
+- [ ] All acceptance criteria verified
 - [ ] Changes committed and pushed
+- [ ] Spec marked as complete
 
 **If ALL checks pass, output:** `<promise>DONE</promise>`
 
 **If ANY check fails:** Fix the issue and try again. Do NOT output the magic phrase.
 BUILDEOF
-fi
 
-if [ ! -f "PROMPT_plan.md" ]; then
-    echo -e "${YELLOW}Creating default PROMPT_plan.md...${NC}"
-    cat > "PROMPT_plan.md" << 'PLANEOF'
-# Ralph Planning Mode
+# Create planning prompt (only used if plan mode is explicitly requested)
+cat > "PROMPT_plan.md" << 'PLANEOF'
+# Ralph Planning Mode (OPTIONAL)
 
-Based on Geoffrey Huntley's Ralph Wiggum methodology.
+This mode is OPTIONAL. Most projects work fine directly from specs.
+
+Only use this when you want a detailed breakdown of specs into smaller tasks.
 
 ---
 
@@ -202,9 +212,7 @@ Based on Geoffrey Huntley's Ralph Wiggum methodology.
 
 0a. Read `.specify/memory/constitution.md` for project principles.
 
-0b. Study `specs/*` to learn all feature specifications.
-
-0c. Read @IMPLEMENTATION_PLAN.md (if exists) for current state.
+0b. Study `specs/` to learn all feature specifications.
 
 ---
 
@@ -220,9 +228,14 @@ Compare specs against current codebase:
 
 ## Phase 2: Create Plan
 
-Update @IMPLEMENTATION_PLAN.md with a prioritized bullet list:
+Create `IMPLEMENTATION_PLAN.md` with a prioritized task list:
 
 ```markdown
+# Implementation Plan
+
+> Auto-generated breakdown of specs into tasks.
+> Delete this file to return to working directly from specs.
+
 ## Priority Tasks
 
 - [ ] [HIGH] Task description - from spec NNN
@@ -248,7 +261,6 @@ When the plan is complete and saved:
 
 `<promise>DONE</promise>`
 PLANEOF
-fi
 
 # Check prompt file exists
 if [ ! -f "$PROMPT_FILE" ]; then
@@ -265,6 +277,12 @@ fi
 # Get current branch
 CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "main")
 
+# Check for work sources
+HAS_PLAN=false
+HAS_SPECS=false
+[ -f "IMPLEMENTATION_PLAN.md" ] && HAS_PLAN=true
+[ -d "specs" ] && [ "$(ls -A specs 2>/dev/null)" ] && HAS_SPECS=true
+
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GREEN}              RALPH LOOP (Claude Code) STARTING              ${NC}"
@@ -275,6 +293,19 @@ echo -e "${BLUE}Prompt:${NC}   $PROMPT_FILE"
 echo -e "${BLUE}Branch:${NC}   $CURRENT_BRANCH"
 echo -e "${YELLOW}YOLO:${NC}     $([ "$YOLO_ENABLED" = true ] && echo "ENABLED" || echo "DISABLED")"
 [ $MAX_ITERATIONS -gt 0 ] && echo -e "${BLUE}Max:${NC}      $MAX_ITERATIONS iterations"
+echo ""
+echo -e "${BLUE}Work source:${NC}"
+if [ "$HAS_PLAN" = true ]; then
+    echo -e "  ${GREEN}✓${NC} IMPLEMENTATION_PLAN.md (will use this)"
+else
+    echo -e "  ${YELLOW}○${NC} IMPLEMENTATION_PLAN.md (not found, that's OK)"
+fi
+if [ "$HAS_SPECS" = true ]; then
+    SPEC_COUNT=$(ls -d specs/*/ 2>/dev/null | wc -l)
+    echo -e "  ${GREEN}✓${NC} specs/ folder ($SPEC_COUNT specs)"
+else
+    echo -e "  ${RED}✗${NC} specs/ folder (empty or not found)"
+fi
 echo ""
 echo -e "${CYAN}The loop checks for <promise>DONE</promise> in each iteration.${NC}"
 echo -e "${CYAN}Agent must verify acceptance criteria before outputting it.${NC}"
@@ -305,7 +336,6 @@ while true; do
     LOG_FILE="$LOG_DIR/ralph_${MODE}_$(date '+%Y%m%d_%H%M%S').log"
 
     # Run Claude with prompt via stdin, capture output
-    # -p: Print mode (non-interactive, outputs response)
     CLAUDE_OUTPUT=""
     if CLAUDE_OUTPUT=$(cat "$PROMPT_FILE" | "$CLAUDE_CMD" $CLAUDE_FLAGS 2>&1 | tee "$LOG_FILE"); then
         echo ""
@@ -317,12 +347,13 @@ while true; do
             echo -e "${GREEN}✓ Task completed successfully!${NC}"
             CONSECUTIVE_FAILURES=0
             
-            # For planning mode, we might want to stop after one successful plan
+            # For planning mode, stop after one successful plan
             if [ "$MODE" = "plan" ]; then
                 echo ""
-                echo -e "${GREEN}Planning complete! Run './scripts/ralph-loop.sh' to start building.${NC}"
-                # Continue to allow re-planning if needed, or uncomment to stop:
-                # break
+                echo -e "${GREEN}Planning complete!${NC}"
+                echo -e "${CYAN}Run './scripts/ralph-loop.sh' to start building.${NC}"
+                echo -e "${CYAN}Or delete IMPLEMENTATION_PLAN.md to work directly from specs.${NC}"
+                break
             fi
         else
             echo -e "${YELLOW}⚠ No completion signal found${NC}"
@@ -336,10 +367,9 @@ while true; do
                 echo -e "${RED}⚠ $MAX_CONSECUTIVE_FAILURES consecutive iterations without completion.${NC}"
                 echo -e "${RED}  The agent may be stuck. Consider:${NC}"
                 echo -e "${RED}  - Checking the logs in $LOG_DIR${NC}"
-                echo -e "${RED}  - Simplifying the current task${NC}"
-                echo -e "${RED}  - Running plan mode to reassess${NC}"
+                echo -e "${RED}  - Simplifying the current spec${NC}"
+                echo -e "${RED}  - Manually fixing blocking issues${NC}"
                 echo ""
-                # Reset counter but don't stop - let it keep trying
                 CONSECUTIVE_FAILURES=0
             fi
         fi
@@ -351,7 +381,6 @@ while true; do
 
     # Push changes after each iteration (if any)
     git push origin "$CURRENT_BRANCH" 2>/dev/null || {
-        # Only warn if there were actually commits to push
         if git log origin/$CURRENT_BRANCH..HEAD --oneline 2>/dev/null | grep -q .; then
             echo -e "${YELLOW}Push failed, creating remote branch...${NC}"
             git push -u origin "$CURRENT_BRANCH" 2>/dev/null || true
