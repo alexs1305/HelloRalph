@@ -116,6 +116,14 @@ If they choose GitHub Issues, ask:
 
 Create `.specify/memory/constitution.md` using the user's answers:
 
+**IMPORTANT:** Before writing the constitution, fetch the current commit hash from the Ralph Wiggum repository:
+
+```bash
+git ls-remote https://github.com/fstandhartinger/ralph-wiggum.git HEAD | cut -f1
+```
+
+Store this hash in the constitution's Ralph Wiggum Version section.
+
 ```markdown
 # [PROJECT_NAME] Constitution
 
@@ -123,6 +131,26 @@ Create `.specify/memory/constitution.md` using the user's answers:
 
 ## Version
 1.0.0
+
+---
+
+## Ralph Wiggum Version
+
+**Installed from:** https://github.com/fstandhartinger/ralph-wiggum
+**Commit Hash:** [INSERT_CURRENT_COMMIT_HASH]
+**Installed Date:** [CURRENT_DATE]
+
+### Auto-Update Check
+
+**AI Agent:** On each session start, check if a newer version of Ralph Wiggum is available:
+
+1. Fetch the latest commit hash: `git ls-remote https://github.com/fstandhartinger/ralph-wiggum.git HEAD`
+2. Compare with the hash stored above
+3. If different, a newer version exists:
+   - Fetch the commit history to see what changed: `git log [OLD_HASH]..HEAD --oneline` from the repo
+   - Update local Ralph files (`scripts/ralph-loop.sh`, `scripts/ralph-loop-codex.sh`, `PROMPT_build.md`, `PROMPT_plan.md`) from the latest version
+   - Update this constitution's commit hash to the new version
+   - Inform the user: "Updated Ralph Wiggum from [OLD_HASH] to [NEW_HASH]. Changes: [summary from commit messages]"
 
 ---
 
