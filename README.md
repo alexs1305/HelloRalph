@@ -8,6 +8,18 @@
 
 ## Quick Start
 
+### Install as Agent Skill (New!)
+
+```bash
+# Using Vercel's add-skill
+npx add-skill fstandhartinger/ralph-wiggum
+
+# Using OpenSkills
+openskills install fstandhartinger/ralph-wiggum
+```
+
+### Full Setup with Interview
+
 **AI Agent? Start Here:**
 > Read and execute [INSTALLATION.md](INSTALLATION.md) for a guided setup with interactive interview.
 
@@ -212,6 +224,20 @@ During installation, you can choose:
 3. **Custom Source** — Your own mechanism
 
 The constitution and prompts adapt accordingly.
+
+---
+
+## Agent Skills Compatibility
+
+Ralph Wiggum follows the [Agent Skills specification](https://agentskills.io) and is compatible with:
+
+| Installer | Command |
+|-----------|---------|
+| [Vercel add-skill](https://github.com/vercel-labs/add-skill) | `npx add-skill fstandhartinger/ralph-wiggum` |
+| [OpenSkills](https://github.com/numman-ali/openskills) | `openskills install fstandhartinger/ralph-wiggum` |
+| [Skillset](https://github.com/climax-tools/skillset) | `skillset add fstandhartinger/ralph-wiggum` |
+
+Works with: **Claude Code**, **Cursor**, **Codex**, **Windsurf**, **Amp**, **OpenCode**, and more.
 
 ---
 
