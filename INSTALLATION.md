@@ -265,6 +265,9 @@ Same content as AGENTS.md.
 
 ## Phase 7: Create Prompts
 
+> **Note:** Both `ralph-loop.sh` and `ralph-loop-codex.sh` will auto-create these files if missing.
+> You can still create them manually for customization.
+
 ### PROMPT_build.md
 
 ```markdown
