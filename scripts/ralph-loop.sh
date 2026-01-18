@@ -45,6 +45,9 @@ YOLO_FLAG="--dangerously-skip-permissions"
 RLM_CONTEXT_FILE=""
 TAIL_LINES=5
 TAIL_RENDERED_LINES=0
+ROLLING_OUTPUT_LINES=5
+ROLLING_OUTPUT_INTERVAL=10
+ROLLING_RENDERED_LINES=0
 
 # Colors
 RED='\033[0;31m'
@@ -134,6 +137,45 @@ print_latest_output() {
     if [ "$target" = "/dev/tty" ]; then
         TAIL_RENDERED_LINES=$((TAIL_LINES + 1))
     fi
+}
+
+watch_latest_output() {
+    local log_file="$1"
+    local label="${2:-Claude}"
+    local target="/dev/tty"
+    local block_lines=$((ROLLING_OUTPUT_LINES + 2))
+
+    [ -f "$log_file" ] || return 0
+
+    if [ ! -w "$target" ]; then
+        target="/dev/stdout"
+    fi
+
+    while true; do
+        local timestamp
+        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+
+        if [ "$target" = "/dev/tty" ] && [ "$ROLLING_RENDERED_LINES" -gt 0 ]; then
+            # Move cursor up, go to column 0, and clear the block.
+            printf "\033[%dA\033[0G\033[J" "$ROLLING_RENDERED_LINES" > "$target"
+        fi
+
+        {
+            echo -e "${CYAN}[$timestamp] Latest ${label} output (last ${ROLLING_OUTPUT_LINES} lines):${NC}"
+            if [ ! -s "$log_file" ]; then
+                echo "(no output yet)"
+            else
+                tail -n "$ROLLING_OUTPUT_LINES" "$log_file" 2>/dev/null || true
+            fi
+            echo ""
+        } > "$target"
+
+        if [ "$target" = "/dev/tty" ]; then
+            ROLLING_RENDERED_LINES=$block_lines
+        fi
+
+        sleep "$ROLLING_OUTPUT_INTERVAL"
+    done
 }
 
 # Parse arguments
@@ -515,6 +557,13 @@ while true; do
 
     # Log file for this iteration
     LOG_FILE="$LOG_DIR/ralph_${MODE}_iter_${ITERATION}_$(date '+%Y%m%d_%H%M%S').log"
+    : > "$LOG_FILE"
+    WATCH_PID=""
+
+    if [ "$ROLLING_OUTPUT_INTERVAL" -gt 0 ] && [ "$ROLLING_OUTPUT_LINES" -gt 0 ] && [ -t 1 ] && [ -w /dev/tty ]; then
+        watch_latest_output "$LOG_FILE" "Claude" &
+        WATCH_PID=$!
+    fi
     RLM_STATUS="unknown"
 
     # Snapshot prompt (optional RLM workspace)
@@ -526,6 +575,10 @@ while true; do
     # Run Claude with prompt via stdin, capture output
     CLAUDE_OUTPUT=""
     if CLAUDE_OUTPUT=$(cat "$PROMPT_FILE" | "$CLAUDE_CMD" $CLAUDE_FLAGS 2>&1 | tee "$LOG_FILE"); then
+        if [ -n "$WATCH_PID" ]; then
+            kill "$WATCH_PID" 2>/dev/null || true
+            wait "$WATCH_PID" 2>/dev/null || true
+        fi
         echo ""
         echo -e "${GREEN}✓ Claude execution completed${NC}"
         
@@ -565,6 +618,10 @@ while true; do
             fi
         fi
     else
+        if [ -n "$WATCH_PID" ]; then
+            kill "$WATCH_PID" 2>/dev/null || true
+            wait "$WATCH_PID" 2>/dev/null || true
+        fi
         echo -e "${RED}✗ Claude execution failed${NC}"
         echo -e "${YELLOW}Check log: $LOG_FILE${NC}"
         CONSECUTIVE_FAILURES=$((CONSECUTIVE_FAILURES + 1))

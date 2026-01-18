@@ -31,6 +31,9 @@ RLM_CONTEXT_FILE=""
 CODEX_CMD="${CODEX_CMD:-codex}"
 TAIL_LINES=5
 TAIL_RENDERED_LINES=0
+ROLLING_OUTPUT_LINES=5
+ROLLING_OUTPUT_INTERVAL=10
+ROLLING_RENDERED_LINES=0
 
 # Colors
 RED='\033[0;31m'
@@ -107,6 +110,45 @@ print_latest_output() {
     if [ "$target" = "/dev/tty" ]; then
         TAIL_RENDERED_LINES=$((TAIL_LINES + 1))
     fi
+}
+
+watch_latest_output() {
+    local log_file="$1"
+    local label="${2:-Codex}"
+    local target="/dev/tty"
+    local block_lines=$((ROLLING_OUTPUT_LINES + 2))
+
+    [ -f "$log_file" ] || return 0
+
+    if [ ! -w "$target" ]; then
+        target="/dev/stdout"
+    fi
+
+    while true; do
+        local timestamp
+        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+
+        if [ "$target" = "/dev/tty" ] && [ "$ROLLING_RENDERED_LINES" -gt 0 ]; then
+            # Move cursor up, go to column 0, and clear the block.
+            printf "\033[%dA\033[0G\033[J" "$ROLLING_RENDERED_LINES" > "$target"
+        fi
+
+        {
+            echo -e "${CYAN}[$timestamp] Latest ${label} output (last ${ROLLING_OUTPUT_LINES} lines):${NC}"
+            if [ ! -s "$log_file" ]; then
+                echo "(no output yet)"
+            else
+                tail -n "$ROLLING_OUTPUT_LINES" "$log_file" 2>/dev/null || true
+            fi
+            echo ""
+        } > "$target"
+
+        if [ "$target" = "/dev/tty" ]; then
+            ROLLING_RENDERED_LINES=$block_lines
+        fi
+
+        sleep "$ROLLING_OUTPUT_INTERVAL"
+    done
 }
 
 # Parse arguments
@@ -266,6 +308,13 @@ while true; do
     LOG_FILE="$LOG_DIR/ralph_codex_${MODE}_iter_${ITERATION}_$(date '+%Y%m%d_%H%M%S').log"
     OUTPUT_FILE="$LOG_DIR/ralph_codex_output_iter_${ITERATION}_$(date '+%Y%m%d_%H%M%S').txt"
     RLM_STATUS="unknown"
+    : > "$LOG_FILE"
+    WATCH_PID=""
+
+    if [ "$ROLLING_OUTPUT_INTERVAL" -gt 0 ] && [ "$ROLLING_OUTPUT_LINES" -gt 0 ] && [ -t 1 ] && [ -w /dev/tty ]; then
+        watch_latest_output "$LOG_FILE" "Codex" &
+        WATCH_PID=$!
+    fi
 
     # Optional RLM context block appended to prompt at runtime
     EFFECTIVE_PROMPT_FILE="$PROMPT_FILE"
@@ -327,6 +376,10 @@ EOF
     
     CODEX_EXIT=0
     if cat "$EFFECTIVE_PROMPT_FILE" | "$CODEX_CMD" $CODEX_FLAGS - --output-last-message "$OUTPUT_FILE" 2>&1 | tee "$LOG_FILE"; then
+        if [ -n "$WATCH_PID" ]; then
+            kill "$WATCH_PID" 2>/dev/null || true
+            wait "$WATCH_PID" 2>/dev/null || true
+        fi
         echo ""
         echo -e "${GREEN}✓ Codex execution completed${NC}"
         
@@ -366,6 +419,10 @@ EOF
             fi
         fi
     else
+        if [ -n "$WATCH_PID" ]; then
+            kill "$WATCH_PID" 2>/dev/null || true
+            wait "$WATCH_PID" 2>/dev/null || true
+        fi
         CODEX_EXIT=$?
         echo -e "${RED}✗ Codex execution failed (exit code: $CODEX_EXIT)${NC}"
         echo -e "${YELLOW}Check log: $LOG_FILE${NC}"
