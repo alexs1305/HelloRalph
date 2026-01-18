@@ -181,11 +181,17 @@ If something gets stuck, these logs contain the full verbose trace.
 
 For huge inputs, you can run in **RLM-style mode** by providing a large context file.
 The agent will treat the file as external environment and only load slices on demand.
+This is **optional and experimental** — it does not implement the full recursive runtime from the paper, but it **does** keep all loop outputs on disk and provides tooling guidance to query them.
 
 ```bash
 ./scripts/ralph-loop.sh --rlm-context ./rlm/context.txt
 ./scripts/ralph-loop-codex.sh --rlm-context ./rlm/context.txt
 ```
+
+RLM workspace (when enabled):
+- `rlm/trace/` — Prompt snapshots per iteration
+- `rlm/index.tsv` — Index of all iterations
+- `logs/` — Full CLI output per iteration
 
 This mirrors the idea from Recursive Language Models (RLMs), which treat long prompts as external environment rather than stuffing them into the context window.
 

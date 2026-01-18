@@ -31,6 +31,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 LOG_DIR="$PROJECT_DIR/logs"
 CONSTITUTION="$PROJECT_DIR/.specify/memory/constitution.md"
+RLM_DIR="$PROJECT_DIR/rlm"
+RLM_TRACE_DIR="$RLM_DIR/trace"
+RLM_QUERIES_DIR="$RLM_DIR/queries"
+RLM_ANSWERS_DIR="$RLM_DIR/answers"
+RLM_INDEX="$RLM_DIR/index.tsv"
 
 # Configuration
 MAX_ITERATIONS=0  # 0 = unlimited
@@ -96,6 +101,11 @@ How it works:
   6. If found, loop continues to next iteration (fresh context)
   7. If not found, loop retries
 
+RLM workspace (when enabled):
+  - rlm/trace/     Prompt snapshots + outputs per iteration
+  - rlm/index.tsv  Index of all iterations (timestamp, prompt, log, status)
+  - rlm/queries/ and rlm/answers/  For optional recursive sub-queries
+
 EOF
 }
 
@@ -150,6 +160,14 @@ if [ -n "$RLM_CONTEXT_FILE" ] && [ ! -f "$RLM_CONTEXT_FILE" ]; then
     echo "Create it first (example):"
     echo "  mkdir -p rlm && printf \"%s\" \"<your long context>\" > $RLM_CONTEXT_FILE"
     exit 1
+fi
+
+# Initialize RLM workspace (optional)
+if [ -n "$RLM_CONTEXT_FILE" ]; then
+    mkdir -p "$RLM_TRACE_DIR" "$RLM_QUERIES_DIR" "$RLM_ANSWERS_DIR"
+    if [ ! -f "$RLM_INDEX" ]; then
+        echo -e "timestamp\tmode\titeration\tprompt\tlog\toutput\tstatus" > "$RLM_INDEX"
+    fi
 fi
 
 # Session log (captures ALL output)
@@ -222,6 +240,17 @@ Instead, inspect it programmatically and recursively:
 
 Goal: decompose the task into smaller sub-queries and only load the pieces you need.
 This mirrors the Recursive Language Model approach from https://arxiv.org/html/2512.24601v1
+
+## RLM Workspace (Optional)
+
+Past loop outputs are preserved on disk:
+- Iteration logs: `logs/`
+- Prompt/output snapshots: `rlm/trace/`
+- Iteration index: `rlm/index.tsv`
+
+Use these as an external memory store (search/slice as needed).
+If you need a recursive sub-query, write a focused prompt in `rlm/queries/`,
+run a short sub-call, and store the result in `rlm/answers/`.
 EOF
 fi
 
@@ -318,6 +347,15 @@ You have access to a large context file at:
 Treat this file as an external environment. Do NOT paste the whole file into the prompt.
 Inspect only the slices you need using shell tools or Python.
 This mirrors the Recursive Language Model approach from https://arxiv.org/html/2512.24601v1
+
+## RLM Workspace (Optional)
+
+Past loop outputs are preserved on disk:
+- Iteration logs: `logs/`
+- Prompt/output snapshots: `rlm/trace/`
+- Iteration index: `rlm/index.tsv`
+
+Use these as an external memory store (search/slice as needed).
 EOF
 fi
 
@@ -446,6 +484,13 @@ while true; do
 
     # Log file for this iteration
     LOG_FILE="$LOG_DIR/ralph_${MODE}_iter_${ITERATION}_$(date '+%Y%m%d_%H%M%S').log"
+    RLM_STATUS="unknown"
+
+    # Snapshot prompt (optional RLM workspace)
+    if [ -n "$RLM_CONTEXT_FILE" ]; then
+        RLM_PROMPT_SNAPSHOT="$RLM_TRACE_DIR/iter_${ITERATION}_prompt.md"
+        cp "$PROMPT_FILE" "$RLM_PROMPT_SNAPSHOT"
+    fi
 
     # Run Claude with prompt via stdin, capture output
     CLAUDE_OUTPUT=""
@@ -458,6 +503,7 @@ while true; do
             echo -e "${GREEN}✓ Completion signal detected: <promise>DONE</promise>${NC}"
             echo -e "${GREEN}✓ Task completed successfully!${NC}"
             CONSECUTIVE_FAILURES=0
+            RLM_STATUS="done"
             
             # For planning mode, stop after one successful plan
             if [ "$MODE" = "plan" ]; then
@@ -473,6 +519,7 @@ while true; do
             echo -e "${YELLOW}  This means acceptance criteria were not met.${NC}"
             echo -e "${YELLOW}  Retrying in next iteration...${NC}"
             CONSECUTIVE_FAILURES=$((CONSECUTIVE_FAILURES + 1))
+            RLM_STATUS="incomplete"
             
             if [ $CONSECUTIVE_FAILURES -ge $MAX_CONSECUTIVE_FAILURES ]; then
                 echo ""
@@ -489,6 +536,15 @@ while true; do
         echo -e "${RED}✗ Claude execution failed${NC}"
         echo -e "${YELLOW}Check log: $LOG_FILE${NC}"
         CONSECUTIVE_FAILURES=$((CONSECUTIVE_FAILURES + 1))
+        RLM_STATUS="error"
+    fi
+
+    # Record iteration in RLM index (optional)
+    if [ -n "$RLM_CONTEXT_FILE" ]; then
+        RLM_PROMPT_PATH="${RLM_PROMPT_SNAPSHOT:-}"
+        RLM_OUTPUT_SNAPSHOT="$RLM_TRACE_DIR/iter_${ITERATION}_output.log"
+        cp "$LOG_FILE" "$RLM_OUTPUT_SNAPSHOT"
+        echo -e "${TIMESTAMP}\t${MODE}\t${ITERATION}\t${RLM_PROMPT_PATH}\t${LOG_FILE}\t${RLM_OUTPUT_SNAPSHOT}\t${RLM_STATUS}" >> "$RLM_INDEX"
     fi
 
     # Push changes after each iteration (if any)
