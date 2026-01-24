@@ -132,15 +132,18 @@ This analyzes specs vs current code and creates IMPLEMENTATION_PLAN.md.
 ```
 
 Each iteration:
-1. Reads IMPLEMENTATION_PLAN.md
-2. Picks the highest priority incomplete task
-3. Implements completely
-4. Runs tests
-5. Verifies acceptance criteria
-6. Commits and pushes
-7. Outputs `<promise>DONE</promise>` if successful
-8. Exits for fresh context
-9. Loop restarts
+1. Reads specs in numerical order (or IMPLEMENTATION_PLAN.md if exists)
+2. Picks the highest priority incomplete spec (or if that one seems unachievable or needs any of the other ones as a precondition, chooses that one instead)
+3. Looks for a note in that spec about NR_OF_TRIES and increments it; if that note isn't found, adds it (at the very bottom). If NR_OF_TRIES > 0, also look at `history/` folder to understand what we struggled with or learned in previous tries. If NR_OF_TRIES = 10, this spec is unachievable (too hard or too big) — split it into simpler specs
+4. Implements completely
+5. Puts concise notes into `history/` (e.g., lessons learned). These notes help future iterations understand what previous attempts did
+6. Runs tests
+7. Verifies acceptance criteria
+8. Commits and pushes
+9. If commit triggered a deploy (or if deploy needed to keep test/dev/prod updated), perform/watch deploy until successful (fix and re-commit+push+deploy as needed)
+10. Outputs `<promise>DONE</promise>` if successful
+11. Exits for fresh context
+12. Loop restarts
 
 ### Completion Signal Rules
 

@@ -393,12 +393,15 @@ Once you have specs, run:
 ```
 
 Ralph will:
-1. Pick the first incomplete spec
-2. Implement it completely
-3. Verify all acceptance criteria
-4. Commit and push
-5. Move to the next spec
-6. Repeat until all specs are done
+1. Pick the highest priority incomplete spec (or a different one if the top priority seems unachievable or needs preconditions)
+2. Track NR_OF_TRIES at the bottom of each spec — if it reaches 10, split the spec into simpler ones
+3. Check `history/` folder for lessons learned from previous attempts
+4. Implement the spec completely
+5. Add concise notes to `history/` about what was learned
+6. Verify all acceptance criteria
+7. Commit and push (and deploy if needed)
+8. Move to the next spec
+9. Repeat until all specs are done
 
 ---
 
