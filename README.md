@@ -236,21 +236,19 @@ These provide a visual history of what was built.
 project/
 ├── .specify/
 │   └── memory/
-│       └── constitution.md       # Project principles & config
+│       └── constitution.md       # Single source of truth for all agent behavior
 ├── specs/
-│   └── NNN-feature-name/
-│       └── spec.md               # Feature specification
+│   └── NNN-feature-name.md       # Feature specifications
 ├── scripts/
 │   ├── ralph-loop.sh             # Claude Code loop
-│   └── ralph-loop-codex.sh       # OpenAI Codex loop
-├── PROMPT_build.md               # Build mode instructions
-├── PROMPT_plan.md                # Planning mode instructions
-├── IMPLEMENTATION_PLAN.md        # (OPTIONAL) Detailed task list
+│   ├── ralph-loop-codex.sh       # OpenAI Codex loop
+│   ├── ralph-loop-gemini.sh      # Google Gemini loop
+│   └── ralph-loop-copilot.sh     # GitHub Copilot loop
 ├── AGENTS.md                     # Points to constitution
 └── CLAUDE.md                     # Points to constitution
 ```
 
-**Note:** `IMPLEMENTATION_PLAN.md` is optional. If it doesn't exist, the agent works directly from specs.
+The **constitution** is the single source of truth. Optional features (Telegram, GitHub Issues, completion logs) are configured there — not baked into the scripts.
 
 ---
 

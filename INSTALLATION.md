@@ -33,9 +33,11 @@ Fetch from GitHub raw URLs:
 |--------|-----|---------|
 | ralph-loop.sh | `https://raw.githubusercontent.com/fstandhartinger/ralph-wiggum/main/scripts/ralph-loop.sh` | `scripts/ralph-loop.sh` |
 | ralph-loop-codex.sh | `https://raw.githubusercontent.com/fstandhartinger/ralph-wiggum/main/scripts/ralph-loop-codex.sh` | `scripts/ralph-loop-codex.sh` |
+| ralph-loop-gemini.sh | `https://raw.githubusercontent.com/fstandhartinger/ralph-wiggum/main/scripts/ralph-loop-gemini.sh` | `scripts/ralph-loop-gemini.sh` |
+| ralph-loop-copilot.sh | `https://raw.githubusercontent.com/fstandhartinger/ralph-wiggum/main/scripts/ralph-loop-copilot.sh` | `scripts/ralph-loop-copilot.sh` |
 
 ```bash
-chmod +x scripts/ralph-loop.sh scripts/ralph-loop-codex.sh
+chmod +x scripts/ralph-loop*.sh
 ```
 
 ---
@@ -119,6 +121,40 @@ Present these together as a quick setup:
 
 ---
 
+#### 6. Optional Features
+
+Present these as a quick checklist. Each is independent — the user can pick any combination.
+
+> "Ralph has a few optional features. Quick yes/no for each:"
+
+**a) Telegram Notifications** — Get progress updates (spec completions, failures) sent to a Telegram chat.
+
+> "Want Telegram notifications when specs are completed or the loop gets stuck? (yes/no)"
+
+If yes, ask for:
+- `TG_BOT_TOKEN` — Telegram bot token (create via @BotFather)
+- `TG_CHAT_ID` — Chat ID to send messages to
+
+**Note to AI:** Tell the user to set these as environment variables. Do NOT put tokens directly in the constitution. The constitution should reference the env vars.
+
+**b) GitHub Issues Integration** — Work on GitHub issues in addition to specs.
+
+> "Should Ralph also pick up work from GitHub Issues? (yes/no)"
+
+If yes, ask for:
+- Repository (e.g. `owner/repo`)
+- Whether issues need approval before work starts (recommended — ask who the approver is)
+
+**c) NR_OF_TRIES Tracking** (recommended) — Track how many times each spec is attempted. After 10 failed attempts, the spec is flagged as "stuck" and should be split.
+
+> "Enable attempt tracking? This prevents the loop from getting stuck on one hard spec forever. (yes/no, recommended: yes)"
+
+**d) Completion Logs** — Create a visual history of completed work in `completion_log/` with summaries and optional mermaid diagrams.
+
+> "Want to keep a completion log with summaries of finished specs? (yes/no)"
+
+---
+
 ### Interview Complete
 
 Thank the user briefly and move on:
@@ -131,14 +167,12 @@ Thank the user briefly and move on:
 
 Create `.specify/memory/constitution.md` using the interview answers.
 
-**Template** (fill in ALL bracketed values):
+**Template** (fill in ALL bracketed values, include optional sections only if user opted in):
 
 ```markdown
 # {PROJECT_NAME} Constitution
 
 > {PROJECT_VISION — paste their description here}
-
-**Version:** 1.0.0
 
 ---
 
@@ -148,28 +182,23 @@ Create `.specify/memory/constitution.md` using the interview answers.
 **Commit:** {COMMIT_HASH}
 **Installed:** {TODAY_DATE}
 
-### Auto-Update
-
-At session start, check for updates:
-1. Run: `git ls-remote https://github.com/fstandhartinger/ralph-wiggum.git HEAD`
-2. If hash differs: fetch latest scripts, update this file, inform user
-
 ---
 
 ## Context Detection
 
-**Ralph Loop Mode** (you're in this if started by ralph-loop.sh):
+**Ralph Loop Mode** (you're in this if started by ralph-loop*.sh):
 - Focus on implementation — no unnecessary questions
-- Pick highest priority incomplete spec
+- Pick highest priority incomplete spec from `specs/`
 - Complete ALL acceptance criteria
 - Test thoroughly
 - Commit and push
 - Output `<promise>DONE</promise>` ONLY when 100% complete
+- Output `<promise>ALL_DONE</promise>` when all work items are finished
 
 **Interactive Mode** (normal conversation):
 - Be helpful and conversational
 - Guide decisions, create specs
-- Explain Ralph loop when ready
+- When user says "Ralph, start working", tell them to run the appropriate script
 
 ---
 
@@ -204,38 +233,24 @@ Build exactly what's needed, nothing more.
 
 ## Work Items
 
+Specs live in the `specs/` folder (project root). Each spec is a markdown file.
+
 The agent discovers work dynamically from:
-1. **specs/ folder** — Primary source, look for incomplete `.md` files
-2. **GitHub Issues** — If this is a GitHub repo
-3. **IMPLEMENTATION_PLAN.md** — If it exists
-4. **Any task tracker** — Jira, Linear, etc. if configured
+1. **specs/ folder** — Primary source, look for `.md` files NOT marked `## Status: COMPLETE`
+2. **IMPLEMENTATION_PLAN.md** — If it exists, find unchecked tasks
+
+Pick the **highest priority** incomplete item (lower numbers = higher priority).
 
 Create specs using `/speckit.specify [description]` or manually create `specs/NNN-feature-name.md`.
-
 Each spec MUST have **testable acceptance criteria**.
 
 ### Re-Verification Mode
 
-When all specs appear complete, the agent will:
+When all specs appear complete, do a quality check:
 1. Randomly pick a completed spec
 2. Strictly re-verify ALL acceptance criteria
 3. Fix any regressions found
 4. Only output `<promise>DONE</promise>` if quality confirmed
-
----
-
-## Running Ralph
-
-```bash
-# Claude Code / Cursor
-./scripts/ralph-loop.sh
-
-# OpenAI Codex
-./scripts/ralph-loop-codex.sh
-
-# With iteration limit
-./scripts/ralph-loop.sh 20
-```
 
 ---
 
@@ -248,6 +263,95 @@ When a spec is 100% complete:
 4. Output: `<promise>DONE</promise>`
 
 **Never output this until truly complete.**
+
+---
+
+## Running Ralph
+
+```bash
+./scripts/ralph-loop.sh              # Claude Code (unlimited)
+./scripts/ralph-loop.sh 20           # Claude Code (max 20 iterations)
+./scripts/ralph-loop-codex.sh        # OpenAI Codex
+./scripts/ralph-loop-gemini.sh       # Google Gemini
+./scripts/ralph-loop-copilot.sh      # GitHub Copilot
+```
+```
+
+### Optional Constitution Sections
+
+**Include each section below ONLY if the user opted in during the interview.**
+
+#### If Telegram Notifications: YES
+
+Add this section to the constitution:
+
+```markdown
+---
+
+## Telegram Notifications
+
+Send progress updates via Telegram. Use env vars `TG_BOT_TOKEN` and `TG_CHAT_ID`.
+
+After completing a spec, send a summary:
+```bash
+curl -s -X POST "https://api.telegram.org/bot$TG_BOT_TOKEN/sendMessage" \
+  -d chat_id="$TG_CHAT_ID" -d parse_mode=Markdown \
+  -d text="✅ *Completed:* {spec name}%0A{brief summary}"
+```
+
+Also notify on: 3+ consecutive failures, stuck specs, loop start/finish.
+```
+
+#### If GitHub Issues Integration: YES
+
+Add this section to the constitution:
+
+```markdown
+---
+
+## GitHub Issues Integration
+
+Work on GitHub issues from `{OWNER/REPO}` in addition to specs.
+
+```bash
+gh issue list --repo {OWNER/REPO} --state open
+gh issue view <number> --repo {OWNER/REPO} --json title,body,comments
+gh issue close <number> --repo {OWNER/REPO}
+```
+
+{If approval required: Only work on issues where **{APPROVER}** has commented "approved".}
+```
+
+#### If NR_OF_TRIES Tracking: YES
+
+Add this section to the constitution:
+
+```markdown
+---
+
+## NR_OF_TRIES Tracking
+
+Track attempts on each spec via a comment at the bottom of the spec file:
+`<!-- NR_OF_TRIES: N -->`
+
+Increment on each attempt. If NR_OF_TRIES >= 10, the spec is too hard or too big — split it into smaller specs and mark the original as superseded.
+
+Check `history/` for lessons learned from previous attempts before starting work.
+```
+
+#### If Completion Logs: YES
+
+Add this section to the constitution:
+
+```markdown
+---
+
+## Completion Logs
+
+After completing a spec, create an entry in `completion_log/`:
+- `YYYY-MM-DD--HH-MM-SS--spec-name.md` — Summary of what was built
+
+Keep entries concise. This provides a visual history across agent sessions.
 ```
 
 ---
@@ -270,53 +374,7 @@ Same content as AGENTS.md.
 
 ---
 
-## Phase 7: Create Prompts
-
-> **Note:** Both `ralph-loop.sh` and `ralph-loop-codex.sh` will auto-create these files if missing.
-> You can still create them manually for customization.
-
-### PROMPT_build.md
-
-```markdown
-# Ralph Build Mode
-
-Read `.specify/memory/constitution.md` first.
-
-## Your Task
-
-1. Check `specs/` folder
-2. Find highest priority INCOMPLETE spec
-3. Implement completely
-4. Run tests, verify acceptance criteria
-5. Commit and push
-6. Output `<promise>DONE</promise>` when done
-
-## Rules
-
-- ONE spec per iteration
-- Do NOT output magic phrase until truly complete
-- If blocked: explain in ralph_history.txt, exit without phrase
-```
-
-### PROMPT_plan.md (optional)
-
-```markdown
-# Ralph Planning Mode
-
-Read `.specify/memory/constitution.md` first.
-
-## Your Task
-
-1. Analyze specs in `specs/`
-2. Create `IMPLEMENTATION_PLAN.md` with prioritized tasks
-3. Output `<promise>DONE</promise>` when done
-
-Delete IMPLEMENTATION_PLAN.md to return to direct spec mode.
-```
-
----
-
-## Phase 8: Create Cursor Command
+## Phase 7: Create Cursor Command
 
 Create `.cursor/commands/speckit.specify.md`:
 
@@ -343,7 +401,7 @@ $ARGUMENTS
 
 ---
 
-## Phase 9: Explain Next Steps
+## Phase 8: Explain Next Steps
 
 Present this clearly to the user:
 
@@ -356,10 +414,8 @@ Here's what was created:
 | File | Purpose |
 |------|---------|
 | `.specify/memory/constitution.md` | Your project's guiding document |
-| `scripts/ralph-loop.sh` | The autonomous build loop (Claude/Cursor) |
-| `scripts/ralph-loop-codex.sh` | The autonomous build loop (Codex) |
+| `scripts/ralph-loop*.sh` | The autonomous build loops |
 | `AGENTS.md` / `CLAUDE.md` | Entry points for AI agents |
-| `PROMPT_build.md` | Instructions for build mode |
 
 ---
 
@@ -385,40 +441,10 @@ Each spec needs **clear acceptance criteria** — specific, testable requirement
 Once you have specs, run:
 
 ```bash
-# For Claude Code / Cursor
 ./scripts/ralph-loop.sh
-
-# For Codex CLI
-./scripts/ralph-loop-codex.sh
 ```
 
-Ralph will:
-1. Pick the highest priority incomplete spec (or a different one if the top priority seems unachievable or needs preconditions)
-2. Track NR_OF_TRIES at the bottom of each spec — if it reaches 10, split the spec into simpler ones
-3. Check `history/` folder for lessons learned from previous attempts
-4. Implement the spec completely
-5. Add concise notes to `history/` about what was learned
-6. Verify all acceptance criteria
-7. Commit and push (and deploy if needed)
-8. Move to the next spec
-9. Repeat until all specs are done
-
----
-
-### The Magic of Ralph
-
-```
-┌─────────┐   ┌─────────┐   ┌─────────┐
-│ Loop 1  │ → │ Loop 2  │ → │ Loop 3  │ → ...
-│ Spec A  │   │ Spec B  │   │ Spec C  │
-│  DONE   │   │  DONE   │   │  DONE   │
-└─────────┘   └─────────┘   └─────────┘
-     ↑             ↑             ↑
-   Fresh        Fresh         Fresh
-  Context      Context       Context
-```
-
-Each iteration starts with a fresh context window. No context overflow, no degradation.
+Ralph will pick specs, implement them, verify acceptance criteria, commit, push, and move to the next spec — all autonomously.
 
 ---
 
@@ -429,6 +455,8 @@ Each iteration starts with a fresh context window. No context overflow, no degra
 | Create spec | Tell me or `/speckit.specify [feature]` |
 | Start building | `./scripts/ralph-loop.sh` |
 | Use Codex | `./scripts/ralph-loop-codex.sh` |
+| Use Gemini | `./scripts/ralph-loop-gemini.sh` |
+| Use Copilot | `./scripts/ralph-loop-copilot.sh` |
 | Limit iterations | `./scripts/ralph-loop.sh 20` |
 
 ---
