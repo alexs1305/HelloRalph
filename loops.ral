@@ -1,0 +1,26 @@
+// Learning Ralph Loops
+// Ralph supports for loops and while loops
+// Note: break and continue are NOT supported in Ralph loops
+
+Contract Loops() {
+
+    // Demonstrates a for loop that sums numbers from 0 to 4 inclusive (result: 10)
+    pub fn sumWithForLoop() -> U256 {
+        let mut sum = 0u
+        for (let mut i = 0u; i <= 4u; i = i + 1u) {
+            sum = sum + i
+        }
+        return sum
+    }
+
+    // Demonstrates a while loop that sums numbers from 0 to 4 inclusive (result: 10)
+    pub fn sumWithWhileLoop() -> U256 {
+        let mut sum = 0u
+        let mut i = 0u
+        while (i <= 4u) {
+            sum = sum + i
+            i = i + 1u
+        }
+        return sum
+    }
+}
