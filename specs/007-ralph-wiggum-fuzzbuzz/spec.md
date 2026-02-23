@@ -1,6 +1,6 @@
 # Spec 007: Ralph Wiggum FuzzBuzz
 
-## Status: DESIGN_DONE
+## Status: COMPLETE
 
 ## Summary
 
