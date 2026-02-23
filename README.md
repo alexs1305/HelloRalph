@@ -297,6 +297,24 @@ Works with: **Claude Code**, **Cursor**, **Codex**, **Windsurf**, **Amp**, **Ope
 
 ---
 
+## Startup header
+
+Startup header: Several scripts print an ASCII question-mark header when they start to indicate the script has begun. The artwork lives at `scripts/ascii-question-mark.txt`. Example (first lines):
+
+```
+       ____
+      / __ \
+     | |  | |
+     | |  | |
+     | |  | |
+      \ \_/ /
+       \___/ 
+          /  
+         .    
+```
+
+To update or remove the header, edit or delete `scripts/ascii-question-mark.txt`; the header is printed by `scripts/who_is_ralph.sh` (or via the non-invasive wrapper).
+
 ## Credits
 
 This approach builds upon:
