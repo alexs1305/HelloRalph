@@ -12,25 +12,29 @@ print_header() {
   fi
 }
 
-# Color occurrences of "Ralph" in a string and print
+# Color occurrences of "Ralph" in a string and print (make bold for emphasis and ensure accessible reset)
 colorize_msg() {
-  printf '%s\n' "$1" | awk -v p="$PURPLE" -v r="$RESET" '{gsub(/Ralph/, p "Ralph" r); print}'
+  BOLD="$(printf '\033[1m')"
+  printf '%s\n' "$1" | awk -v p="$PURPLE" -v b="$BOLD" -v r="$RESET" '{gsub(/Ralph/, b p "Ralph" r); print}'
 }
 
 trim() {
+  # Trim leading/trailing whitespace in a POSIX-friendly way
   printf '%s' "$1" | awk '{$1=$1;print}'
 }
 
 prompt_for_bound() {
+  # Provide clearer prompt, accessible hint, and repeat criteria on invalid input
   while :; do
-    printf 'Enter an upper bound (0-100 inclusive): '
+    printf '\nEnter an upper bound (0-100 inclusive): '
     if ! read USER_INPUT; then
+      printf '\nInput closed, exiting.\n'
       exit 0
     fi
     USER_INPUT=$(trim "$USER_INPUT")
     case "$USER_INPUT" in
       ''|*[!0-9]*)
-        printf 'Invalid input: please enter an integer between 0 and 100 (inclusive).\n'
+        printf '\nInvalid input: please enter an integer between 0 and 100 (inclusive). Example: 42\n'
         continue
         ;;
     esac
@@ -38,7 +42,7 @@ prompt_for_bound() {
     if [ "$N" -ge 0 ] 2>/dev/null && [ "$N" -le 100 ] 2>/dev/null; then
       return 0
     else
-      printf 'Invalid input: please enter an integer between 0 and 100 (inclusive).\n'
+      printf '\nInvalid input: please enter an integer between 0 and 100 (inclusive).\n'
     fi
   done
 }
