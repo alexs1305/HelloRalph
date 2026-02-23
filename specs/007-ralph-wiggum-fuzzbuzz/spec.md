@@ -1,6 +1,6 @@
 # Spec 007: Ralph Wiggum FuzzBuzz
 
-## Status: JUNIOR_DONE
+## Status: SENIOR_DONE
 
 ## Summary
 
