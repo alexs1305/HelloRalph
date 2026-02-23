@@ -41,7 +41,7 @@ CONSTITUTION="$PROJECT_DIR/.specify/memory/constitution.md"
 MAX_ITERATIONS=0  # 0 = unlimited
 MODE="build"
 COPILOT_CMD="copilot"
-COPILOT_MODEL="claude-opus-4.6"  # Default model, can also use: claude-sonnet-4.5, claude-opus-4.5, gpt-5.2
+COPILOT_MODEL="gpt-5-mini"  # Default model, can also use: claude-sonnet-4.5, claude-opus-4.5, gpt-5.2
 YOLO_FLAG="--allow-all-tools"
 TAIL_LINES=5
 TAIL_RENDERED_LINES=0
@@ -68,9 +68,45 @@ if [[ -f "$CONSTITUTION" ]]; then
     fi
 fi
 
+detect_agent() {
+    # Find all specs and their statuses
+    # We want the highest priority spec that is NOT COMPLETE.
+    # Then we check its status to decide the agent.
+    
+    local top_spec=$(find specs -name "*.md" 2>/dev/null | sort | while read -r spec; do
+        if ! grep -q "## Status: COMPLETE" "$spec" 2>/dev/null; then
+            echo "$spec"
+            break
+        fi
+    done | head -n 1)
+    
+    if [ -z "$top_spec" ]; then
+        # If no incomplete specs, maybe we are done or using IMPLEMENTATION_PLAN
+        if [ -f "IMPLEMENTATION_PLAN.md" ]; then
+             echo "PROMPT_build.md"
+             return
+        fi
+        echo "" # No agent detected
+        return
+    fi
+    
+    if grep -q "## Status: PENDING" "$top_spec" 2>/dev/null; then
+        echo "prompts/junior.md"
+    elif grep -q "## Status: JUNIOR_DONE" "$top_spec" 2>/dev/null; then
+        echo "prompts/senior.md"
+    elif grep -q "## Status: SENIOR_DONE" "$top_spec" 2>/dev/null; then
+        echo "prompts/design.md"
+    elif grep -q "## Status: DESIGN_DONE" "$top_spec" 2>/dev/null; then
+        echo "prompts/pm.md"
+    else
+        # If no status found, assume PENDING (Junior)
+        echo "prompts/junior.md"
+    fi
+}
+
 show_help() {
     cat <<EOF
-Ralph Loop for GitHub Copilot CLI
+Ralph Loop for GitHub Copilot CLI (Multi-Agent Edition)
 
 Based on Geoffrey Huntley's Ralph Wiggum methodology + SpecKit specs.
 https://github.com/ghuntley/how-to-ralph-wiggum
@@ -81,28 +117,20 @@ Usage:
   ./scripts/ralph-loop-copilot.sh plan         # Planning mode (optional)
 
 Modes:
-  build (default)  Pick spec/task and implement
+  build (default)  Pick spec/task and implement via multi-agent chain
   plan             Create IMPLEMENTATION_PLAN.md from specs (OPTIONAL)
 
-Work Sources (checked in order):
-  1. IMPLEMENTATION_PLAN.md - If exists, pick highest priority task
-  2. specs/ folder - Otherwise, pick highest priority incomplete spec
-
-The plan mode is OPTIONAL. Most projects can work directly from specs.
+Agent Chain:
+  1. Junior Agent  - Speed & simplicity (Status: PENDING)
+  2. Senior Agent  - Quality & refactoring (Status: JUNIOR_DONE)
+  3. Design Agent  - UI/UX polish (Status: SENIOR_DONE)
+  4. Project Mgr   - Final verification (Status: DESIGN_DONE) -> Status: COMPLETE
 
 How it works:
-  1. Each iteration feeds PROMPT.md to GitHub Copilot CLI
-  2. Copilot picks the HIGHEST PRIORITY incomplete spec/task
-  3. Copilot implements, tests, and verifies acceptance criteria
-  4. Copilot outputs <promise>DONE</promise> ONLY if criteria are met
-  5. Bash loop checks for the magic phrase
-  6. If found, loop continues to next iteration (fresh context)
-  7. If not found, loop retries
-
-Important Notes:
-  - GitHub Copilot CLI automatically loads AGENTS.md as custom instructions
-  - Use --no-custom-instructions flag to disable this behavior
-  - The AGENTS.md file should contain project-specific instructions
+  1. Each iteration detects the next required agent based on spec status.
+  2. Copilot runs with that agent's specific instructions.
+  3. Agent implements/reviews, updates status, and outputs <promise>DONE</promise>.
+  4. Bash loop continues to next iteration (fresh context).
 
 EOF
 }
@@ -251,24 +279,17 @@ if ! command -v $COPILOT_CMD &> /dev/null; then
     exit 1
 fi
 
-# Determine which prompt to use based on mode and available files
-if [ "$MODE" = "plan" ]; then
-    PROMPT_FILE="PROMPT_plan.md"
-else
-    PROMPT_FILE="PROMPT_build.md"
-fi
+# PROMPT_plan.md is used for the planning phase
+# PROMPT_build.md is kept as a fallback if no specific agent is detected
 
 # Generate minimal PROMPT files — constitution.md already contains the full workflow
 cat > "PROMPT_build.md" << 'BUILDEOF'
-# Ralph Loop — Build Mode
+# Ralph Loop — Developer Agent (Fallback)
 
-You are running inside a Ralph Wiggum autonomous loop (Context A).
+You are running inside a Ralph Wiggum autonomous loop.
 
-Read `.specify/memory/constitution.md` — it contains all project principles, workflow
-instructions, work sources, and completion signal requirements.
-
-Find the highest-priority incomplete work item, implement it completely, verify all
-acceptance criteria, commit and push, then output `<promise>DONE</promise>`.
+Find the highest-priority incomplete spec, implement it, verify all acceptance criteria, 
+commit and push, then update the status to `## Status: COMPLETE` and output `<promise>DONE</promise>`.
 BUILDEOF
 
 cat > "PROMPT_plan.md" << 'PLANEOF'
@@ -285,11 +306,7 @@ Do NOT implement anything.
 When the plan is complete, output `<promise>DONE</promise>`.
 PLANEOF
 
-# Check prompt file exists
-if [ ! -f "$PROMPT_FILE" ]; then
-    echo -e "${RED}Error: $PROMPT_FILE not found${NC}"
-    exit 1
-fi
+# Prompt files are managed dynamically or generated above
 
 # Build Copilot flags (note: -p "prompt" must be together, other flags come after)
 COPILOT_POST_FLAGS="--model $COPILOT_MODEL"
@@ -365,13 +382,31 @@ while true; do
     ITERATION=$((ITERATION + 1))
     TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
 
+    # Determine which prompt to use for this iteration
+    if [ "$MODE" = "plan" ]; then
+        PROMPT_FILE="PROMPT_plan.md"
+    else
+        PROMPT_FILE=$(detect_agent)
+        if [ -z "$PROMPT_FILE" ]; then
+            echo -e "${GREEN}All tasks complete! No active specs found.${NC}"
+            break
+        fi
+    fi
+
+    if [ ! -f "$PROMPT_FILE" ]; then
+        echo -e "${RED}Error: Prompt file $PROMPT_FILE not found${NC}"
+        exit 1
+    fi
+
+    AGENT_NAME=$(basename "$PROMPT_FILE" .md | tr '[:lower:]' '[:upper:]')
+
     echo ""
-    echo -e "${PURPLE}════════════════════ LOOP $ITERATION ════════════════════${NC}"
-    echo -e "${BLUE}[$TIMESTAMP]${NC} Starting iteration $ITERATION"
+    echo -e "${PURPLE}════════════════════ LOOP $ITERATION ($AGENT_NAME) ════════════════════${NC}"
+    echo -e "${BLUE}[$TIMESTAMP]${NC} Starting iteration $ITERATION with $AGENT_NAME agent"
     echo ""
 
     # Log file for this iteration
-    LOG_FILE="$LOG_DIR/ralph_${MODE}_iter_${ITERATION}_$(date '+%Y%m%d_%H%M%S').log"
+    LOG_FILE="$LOG_DIR/ralph_${MODE}_${AGENT_NAME}_iter_${ITERATION}_$(date '+%Y%m%d_%H%M%S').log"
     : > "$LOG_FILE"
     WATCH_PID=""
 
